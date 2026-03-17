@@ -1,0 +1,2919 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejamento NRE - Foz do Iguaçu</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            padding: 1rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Status de sincronização */
+        .sync-status {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            z-index: 1000;
+        }
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        .sync-indicator.syncing {
+            background: #f59e0b;
+        }
+        .sync-indicator.error {
+            background: #ef4444;
+            animation: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Header */
+        .header { 
+            background: white; 
+            border-radius: 1rem; 
+            padding: 1.5rem; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            margin-bottom: 1.5rem; 
+        }
+        .header-top {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .header-info h1 { font-size: 1.75rem; color: #1e293b; margin-bottom: 0.25rem; }
+        .header-info p { color: #64748b; font-size: 0.95rem; }
+        
+        .toggle-visualizacao {
+            display: flex;
+            gap: 0.5rem;
+            background: #f1f5f9;
+            padding: 0.25rem;
+            border-radius: 0.75rem;
+        }
+        .btn-toggle {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            background: transparent;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .btn-toggle:hover {
+            color: #1e293b;
+        }
+        .btn-toggle.ativo {
+            background: white;
+            color: #2563eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .btn-novo { 
+            background: #2563eb; 
+            color: white; 
+            padding: 0.75rem 1.5rem; 
+            border: none; 
+            border-radius: 0.75rem; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 0.95rem;
+            transition: all 0.2s; 
+        }
+        .btn-novo:hover { background: #1d4ed8; transform: translateY(-1px); }
+        
+        .mes-destaque {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+        
+        /* Filtros */
+        .filtros { 
+            background: white; 
+            border-radius: 1rem; 
+            padding: 1.25rem; 
+            margin-bottom: 1.5rem; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        }
+        .filtros-grid { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .filtros input, .filtros select { 
+            padding: 0.6rem 1rem; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 0.5rem; 
+            background: #f8fafc; 
+            flex: 1; 
+            min-width: 200px; 
+            font-size: 0.9rem;
+        }
+        .filtros input:focus, .filtros select:focus { 
+            outline: none; 
+            border-color: #2563eb; 
+            background: white;
+        }
+        
+        /* Grid das colunas (semanal) */
+        .grade { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
+            gap: 1rem; 
+        }
+        
+        /* Calendário mensal */
+        .calendario-mensal {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .calendario-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        .calendario-dia-semana {
+            text-align: center;
+            font-weight: 700;
+            color: #64748b;
+            padding: 0.75rem;
+            font-size: 0.85rem;
+        }
+        .calendario-dia {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            min-height: 120px;
+            padding: 0.5rem;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calendario-dia:hover {
+            border-color: #2563eb;
+            background: white;
+        }
+        .calendario-dia.outro-mes {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        .calendario-dia.hoje {
+            border: 2px solid #2563eb;
+            background: #eff6ff;
+        }
+        .dia-numero {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+        .dia-eventos {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .evento-mini {
+            background: #e9d5ff;
+            color: #6b21a8;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .evento-mini:hover {
+            background: #d8b4fe;
+            transform: scale(1.02);
+        }
+        
+        /* Tooltip para detalhes da formação */
+        .tooltip-formacao {
+            position: fixed;
+            background: white;
+            border: 2px solid #2563eb;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 10000;
+            min-width: 280px;
+            max-width: 350px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .tooltip-formacao.ativo {
+            opacity: 1;
+        }
+        .tooltip-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e0e7ff;
+        }
+        .tooltip-motivo {
+            background: #e9d5ff;
+            color: #6b21a8;
+            padding: 0.35rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tooltip-data {
+            color: #64748b;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .tooltip-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .tooltip-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .tooltip-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .tooltip-label {
+            font-weight: 600;
+            color: #475569;
+            min-width: 60px;
+        }
+        .tooltip-valor {
+            color: #1e293b;
+            flex: 1;
+        }
+        .tooltip-tecnicos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        .tooltip-tecnico-badge {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.35rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        /* Coluna */
+        .coluna { 
+            background: white; 
+            border-radius: 1rem; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column; 
+            height: 650px; 
+        }
+        .navegacao-semana {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
+        .navegacao-semana button,
+        .navegacao-mes button {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .navegacao-semana button:hover,
+        .navegacao-mes button:hover {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+        .navegacao-mes {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
+        .semana-info, .mes-info {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+        .coluna-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        .coluna-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .coluna-header h2 { font-size: 1.1rem; color: #1e293b; }
+        .coluna-data { font-size: 0.85rem; color: #64748b; margin-top: 0.25rem; }
+        .contador-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-adicionar-dia {
+            background: #2563eb;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: 700;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .btn-adicionar-dia:hover {
+            background: #1d4ed8;
+            transform: scale(1.05);
+        }
+        .contador { 
+            background: #e0e7ff; 
+            color: #3730a3; 
+            padding: 0.35rem 0.75rem; 
+            border-radius: 0.5rem; 
+            font-weight: 700; 
+            font-size: 0.9rem;
+        }
+        .coluna-body { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 1rem; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 0.75rem;
+        }
+        .coluna-body.drag-over {
+            background: #eff6ff;
+        }
+        .vazio { 
+            text-align: center; 
+            color: #94a3b8; 
+            padding: 2rem; 
+            font-size: 0.9rem;
+        }
+        
+        /* Card */
+        .card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.6rem;
+            padding: 0.5rem 0.75rem;
+            cursor: grab;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .card:hover {
+            border-color: #94a3b8;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card.arrastando {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .card.expandido {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.1);
+        }
+
+        /* Linha resumo (sempre visível) */
+        .card-resumo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .card-resumo-motivo {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .card-resumo-tecnico {
+            font-size: 0.82rem;
+            color: #1e293b;
+            font-weight: 600;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .card-resumo-cidade {
+            font-size: 0.75rem;
+            color: #64748b;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 80px;
+        }
+        .card-resumo-sep {
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+        .card-chevron {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+        .card.expandido .card-chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Detalhes (visível só quando expandido) */
+        .card-detalhes {
+            display: none;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .card.expandido .card-detalhes {
+            display: flex;
+        }
+        .card-acoes {
+            display: flex;
+            gap: 0.25rem;
+            justify-content: flex-end;
+            margin-top: 0.25rem;
+        }
+        .btn-editar, .btn-del {
+            background: #f1f5f9;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.4rem;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        .btn-editar:hover { opacity: 1; background: #dbeafe; }
+        .btn-del:hover { opacity: 1; background: #fee2e2; }
+
+        .motivo {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 0.35rem 0.75rem;
+            border-radius: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .motivo-formacao { background: #e9d5ff; color: #6b21a8; }
+        .motivo-visita { background: #dbeafe; color: #1e40af; }
+        .motivo-visitatecnica { background: #dbeafe; color: #1e40af; }
+        .motivo-reuniao { background: #ffedd5; color: #9a3412; }
+        .motivo-tutoria { background: #d1fae5; color: #065f46; }
+        .motivo-outros { background: #f1f5f9; color: #475569; }
+        .motivo-multiprofissional { background: #fef3c7; color: #92400e; }
+        .motivo-verificacao { background: #fce7f3; color: #9f1239; }
+        .motivo-caminhadapedagogica { background: #f5f0e8; color: #78583a; }
+        .card-resumo-motivo.motivo-formacao { background: #e9d5ff; color: #6b21a8; }
+        .card-resumo-motivo.motivo-visita { background: #dbeafe; color: #1e40af; }
+        .card-resumo-motivo.motivo-visitatecnica { background: #dbeafe; color: #1e40af; }
+        .card-resumo-motivo.motivo-reuniao { background: #ffedd5; color: #9a3412; }
+        .card-resumo-motivo.motivo-tutoria { background: #d1fae5; color: #065f46; }
+        .card-resumo-motivo.motivo-multiprofissional { background: #fef3c7; color: #92400e; }
+        .card-resumo-motivo.motivo-verificacao { background: #fce7f3; color: #9f1239; }
+        .card-resumo-motivo.motivo-caminhadapedagogica { background: #f5f0e8; color: #78583a; }
+        .card-resumo-motivo.motivo-outros { background: #f1f5f9; color: #475569; }
+
+        /* Borda colorida por natureza do atendimento */
+        .card.motivo-formacao { border-color: #6b21a8 !important; }
+        .card.motivo-visita { border-color: #1e40af !important; }
+        .card.motivo-visitatecnica { border-color: #1e40af !important; }
+        .card.motivo-visitatecnica { border-color: #1e40af !important; }
+        .card.motivo-reuniao { border-color: #9a3412 !important; }
+        .card.motivo-tutoria { border-color: #065f46 !important; }
+        .card.motivo-multiprofissional { border-color: #92400e !important; }
+        .card.motivo-verificacao { border-color: #9f1239 !important; }
+        .card.motivo-caminhadapedagogica { border-color: #78583a !important; }
+        .card.motivo-outros { border-color: #475569 !important; }
+
+        .card-info { display: flex; flex-direction: column; gap: 0.4rem; }
+        .info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+        .info.destaque {
+            background: #f1f5f9;
+            padding: 0.4rem 0.5rem;
+            border-radius: 0.4rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .icon { font-size: 0.95rem; }
+        .tecnicos-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        .tecnico-badge {
+            background: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.35rem;
+            font-size: 0.75rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 1rem;
+        }
+        .modal.ativo { display: flex; }
+        .modal-conteudo {
+            background: white;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 { font-size: 1.5rem; color: #1e293b; }
+        .btn-fechar {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .btn-fechar:hover { background: #e2e8f0; }
+        .modal-body { padding: 1.5rem; }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.9rem;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #f8fafc;
+            font-size: 0.95rem;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2563eb;
+            background: white;
+        }
+        /* Estilo para labels de checkbox de turno */
+        .tecnicos-container label:has(input[type="checkbox"]):hover {
+            border-color: #2563eb;
+            background: #f0f9ff;
+        }
+        .tecnicos-container label:has(input[type="checkbox"]:checked) {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+        .tecnicos-container {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            background: #f8fafc;
+        }
+        .tecnicos-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .tecnico-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .tecnico-input {
+            flex: 1;
+            padding: 0.6rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: white;
+            font-size: 0.9rem;
+        }
+        .btn-remover-tecnico {
+            background: #fee2e2;
+            color: #991b1b;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+        .btn-remover-tecnico:hover {
+            background: #fecaca;
+        }
+        .btn-adicionar-tecnico {
+            width: 100%;
+            background: #e0e7ff;
+            color: #3730a3;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.6rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-adicionar-tecnico:hover {
+            background: #c7d2fe;
+        }
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        .btn-cancelar {
+            padding: 0.75rem 1.5rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-cancelar:hover { background: #f8fafc; }
+        .btn-salvar {
+            padding: 0.75rem 1.5rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-salvar:hover { background: #1d4ed8; }
+
+        /* Modal de configuração */
+        .config-banner {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .config-banner h3 {
+            color: #92400e;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+        .config-banner p {
+            color: #78350f;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        .config-banner button {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .config-banner button:hover {
+            background: #d97706;
+        }
+        .config-input-group {
+            margin-bottom: 1rem;
+        }
+        .config-input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .config-input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .config-help {
+            background: #eff6ff;
+            border-left: 4px solid #2563eb;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+        }
+        .config-help h4 {
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+        .config-help ol {
+            margin-left: 1.5rem;
+            color: #475569;
+        }
+        .config-help li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+        .config-help code {
+            background: #dbeafe;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .header-top { flex-direction: column; align-items: stretch; }
+            .toggle-visualizacao { width: 100%; }
+            .btn-toggle { flex: 1; }
+            .grade { grid-template-columns: 1fr; }
+            .filtros-grid { flex-direction: column; }
+        }
+
+        /* Detalhamento da Ação */
+        .detalhamento-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+        .detalhamento-toggle:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .detalhamento-toggle input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb; }
+        .detalhamento-toggle span { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+        .detalhamento-campos {
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            margin-top: -0.25rem;
+            border-top: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+        .detalhamento-campos.ativo { display: flex; }
+        .detalhamento-campos .form-group { margin-bottom: 0; }
+        .detalhamento-campos label { font-size: 0.85rem; color: #475569; }
+        .detalhamento-campos textarea {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: white;
+            font-size: 0.875rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 70px;
+            transition: border-color 0.2s;
+        }
+        .detalhamento-campos textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        .etapa-opcoes {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .etapa-opcao {
+            padding: 0.4rem 0.9rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: white;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .etapa-opcao:hover { border-color: #2563eb; color: #2563eb; }
+        .etapa-opcao.selecionada { background: #2563eb; color: white; border-color: #2563eb; }
+
+        /* Modal de visualização do detalhamento */
+        .modal-detalhamento {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            padding: 1rem;
+        }
+        .modal-detalhamento.ativo { display: flex; }
+        .modal-detalhamento-conteudo {
+            background: white;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 580px;
+            max-height: 88vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .modal-det-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+        .modal-det-header h3 { font-size: 1.1rem; color: #1e293b; }
+        .modal-det-body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .det-item { display: flex; flex-direction: column; gap: 0.3rem; }
+        .det-item-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+        }
+        .det-item-valor {
+            font-size: 0.9rem;
+            color: #1e293b;
+            white-space: pre-wrap;
+            background: #f8fafc;
+            padding: 0.6rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            line-height: 1.5;
+        }
+        .det-etapa-badge {
+            display: inline-block;
+            padding: 0.3rem 0.9rem;
+            border-radius: 2rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            background: #2563eb;
+            color: white;
+        }
+        .btn-ver-det {
+            background: #f1f5f9;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.4rem;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        .btn-ver-det:hover { opacity: 1; background: #e0e7ff; }
+
+        /* Tooltip do botão detalhamento */
+        .det-tooltip {
+            position: fixed;
+            background: #1e293b;
+            color: white;
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.4rem;
+            font-size: 0.78rem;
+            font-weight: 500;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 9999;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .det-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1e293b;
+        }
+        .det-tooltip.ativo { opacity: 1; }
+
+        /* Modo leitura no modal de detalhamento */
+        .det-item-valor[contenteditable="true"] {
+            border-color: #2563eb;
+            background: white;
+            outline: none;
+        }
+        .modal-det-edit-bar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        .btn-det-editar {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .btn-det-editar:hover { background: #e2e8f0; }
+        .btn-det-salvar {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .btn-det-salvar:hover { background: #1d4ed8; }
+        .btn-det-salvar.ativo { display: flex; }
+        
+        /* Autocomplete */
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            margin-top: 0.25rem;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .autocomplete-list.ativo {
+            display: block;
+        }
+        .autocomplete-item {
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selecionado {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+        .autocomplete-item mark {
+            background: #fef3c7;
+            color: inherit;
+            font-weight: 600;
+        }
+        
+        /* Labels de turno */
+        .turno-label {
+            transition: all 0.2s;
+        }
+        .turno-label:has(input:checked) {
+            background: #eff6ff !important;
+            border-color: #2563eb !important;
+        }
+        .turno-label:hover {
+            border-color: #94a3b8 !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Status de Sincronização -->
+    <div class="sync-status">
+        <div class="sync-indicator" id="syncIndicator"></div>
+        <span id="syncText">Conectando...</span>
+    </div>
+
+    <div class="container">
+        <!-- Banner de configuração (aparece se não configurado) -->
+        <div class="config-banner" id="configBanner" style="display: none;">
+            <h3>⚙️ Configuração Necessária</h3>
+            <p>Para usar o sistema compartilhado, você precisa configurar o Supabase. É rápido e gratuito!</p>
+            <button onclick="abrirModalConfig()">Configurar Agora</button>
+        </div>
+
+        <div class="header">
+            <div class="header-top">
+                <div class="header-info">
+                    <h1>📅 Planejamento NRE - Foz do Iguaçu</h1>
+                    <p>Sistema compartilhado de agendamentos - Dados sincronizados em tempo real</p>
+                </div>
+                <div class="toggle-visualizacao">
+                    <button class="btn-toggle ativo" onclick="mudarVisualizacao('planejamento')">
+                        📊 Planejamento
+                    </button>
+                    <button class="btn-toggle" onclick="mudarVisualizacao('formacoes')">
+                        🎓 Formações
+                    </button>
+                </div>
+            </div>
+            <div class="header-top">
+                <div class="mes-destaque" id="mesAtual"></div>
+                <button class="btn-novo" onclick="abrirModal()">+ Novo Agendamento</button>
+            </div>
+        </div>
+
+        <div class="filtros">
+            <div class="filtros-grid">
+                <input type="text" id="filtro-tecnico" placeholder="🔍 Filtrar por técnico..." onkeyup="aplicarFiltros()">
+                <input type="text" id="filtro-cidade" placeholder="🔍 Filtrar por cidade..." onkeyup="aplicarFiltros()">
+                <input type="text" id="filtro-colegio" placeholder="🔍 Filtrar por colégio..." onkeyup="aplicarFiltros()">
+                <select id="filtro-motivo" onchange="aplicarFiltros()">
+                    <option value="">Todos os motivos</option>
+                    <option value="Tutoria">Tutoria</option>
+                    <option value="Visita técnica">Visita técnica</option>
+                    <option value="Multiprofissional">Multiprofissional</option>
+                    <option value="Verificação">Verificação</option>
+                    <option value="Reunião">Reunião</option>
+                    <option value="Formação">Formação</option>
+                    <option value="Caminhada Pedagógica">Caminhada Pedagógica</option>
+                    <option value="Outros">Outros</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="visualizacao-planejamento">
+            <div class="navegacao-semana">
+                <button onclick="semanaAnterior()">← Semana Anterior</button>
+                <span class="semana-info" id="semanaInfo"></span>
+                <button onclick="proximaSemana()">Próxima Semana →</button>
+            </div>
+            <div class="grade" id="grade"></div>
+        </div>
+
+        <div id="visualizacao-formacoes" style="display: none;">
+            <div class="navegacao-mes">
+                <button onclick="mesAnterior()">← Mês Anterior</button>
+                <span class="mes-info" id="mesInfo"></span>
+                <button onclick="proximoMes()">Próximo Mês →</button>
+            </div>
+            <div class="calendario-mensal" id="calendario"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração -->
+    <div class="modal" id="modalConfig">
+        <div class="modal-conteudo">
+            <div class="modal-header">
+                <h2>⚙️ Configurar Supabase</h2>
+                <button class="btn-fechar" onclick="fecharModalConfig()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="config-input-group">
+                    <label>Supabase URL:</label>
+                    <input type="text" id="supabaseUrl" placeholder="https://seu-projeto.supabase.co">
+                </div>
+                <div class="config-input-group">
+                    <label>Supabase Anon Key:</label>
+                    <input type="text" id="supabaseKey" placeholder="sua-chave-anonima-aqui">
+                </div>
+                
+                <div class="config-help">
+                    <h4>📝 Como configurar (5 minutos):</h4>
+                    <ol>
+                        <li>Acesse <a href="https://supabase.com" target="_blank">supabase.com</a> e crie uma conta grátis</li>
+                        <li>Clique em "New Project" e escolha um nome</li>
+                        <li>Na página do projeto, vá em <code>Settings → API</code></li>
+                        <li>Copie a <code>URL</code> e a <code>anon public</code> key</li>
+                        <li>Cole aqui e clique em Salvar!</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="fecharModalConfig()">Cancelar</button>
+                <button type="button" class="btn-salvar" onclick="salvarConfig()">💾 Salvar e Conectar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Agendamento -->
+    <div class="modal" id="modal" onclick="fecharSeCliqueForaModal(event)">
+        <div class="modal-conteudo">
+            <div class="modal-header">
+                <h2 id="modal-titulo">➕ Novo Agendamento</h2>
+                <button class="btn-fechar" onclick="fecharModal()">×</button>
+            </div>
+            <form onsubmit="salvarAgendamento(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>📅 Data</label>
+                        <input type="date" id="form-data" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>👥 Técnico(s)</label>
+                        <div class="tecnicos-container">
+                            <div class="tecnicos-lista" id="tecnicos-lista"></div>
+                            <button type="button" class="btn-adicionar-tecnico" onclick="adicionarTecnico()">
+                                + Adicionar outro técnico
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📍 Local e Turno</label>
+                        <div class="tecnicos-container">
+                            <div class="tecnicos-lista" id="cidades-lista"></div>
+                            <button type="button" class="btn-adicionar-tecnico" onclick="adicionarCidadeColegio()">
+                                + Adicionar outro local/turno
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📋 Natureza do Atendimento</label>
+                        <select id="form-motivo" required onchange="toggleTemaFormacao()">
+                            <option value="">Selecione...</option>
+                            <option value="Tutoria">Tutoria</option>
+                            <option value="Visita técnica">Visita técnica</option>
+                            <option value="Multiprofissional">Multiprofissional</option>
+                            <option value="Verificação">Verificação</option>
+                            <option value="Reunião">Reunião</option>
+                            <option value="Formação">Formação</option>
+                            <option value="Caminhada Pedagógica">Caminhada Pedagógica</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="campo-tema" style="display: none;">
+                        <label>📚 Tema da Formação</label>
+                        <input type="text" id="form-tema" placeholder="Ex: Metodologias Ativas, BNCC, Avaliação...">
+                    </div>
+
+                    <div class="form-group" id="campo-outros" style="display: none;">
+                        <label>📝 Descreva a Natureza do Atendimento</label>
+                        <input type="text" id="form-outros-descricao" placeholder="Ex: Acompanhamento de projeto especial...">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="detalhamento-toggle" onclick="toggleDetalhamento()">
+                            <input type="checkbox" id="toggle-detalhamento" onclick="event.stopPropagation(); toggleDetalhamento()">
+                            <span>📝 Inserir detalhamento do atendimento?</span>
+                        </label>
+                        <div class="detalhamento-campos" id="detalhamento-campos">
+                            <div class="form-group">
+                                <label>1. Objetivo e Justificativa da Ação</label>
+                                <textarea id="det-objetivo" placeholder="Descreva de forma sucinta o propósito da ação e os motivos que a tornam necessária"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>2. Pauta / Assuntos Abordados</label>
+                                <textarea id="det-pauta" placeholder="Liste os temas discutidos durante o atendimento"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>3. Situações Evidenciadas</label>
+                                <textarea id="det-situacoes" placeholder="Identifique as principais fragilidades ou problemas detectados"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>4. Encaminhamentos</label>
+                                <textarea id="det-encaminhamentos" placeholder="Detalhe as soluções propostas para enfrentar as fragilidades identificadas"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>5. Responsáveis pelos Encaminhamentos</label>
+                                <textarea id="det-responsaveis" placeholder="Informe os nomes e funções dos responsáveis pela execução das soluções propostas"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>6. Prazo para Avaliação, Feedback ou Revisão</label>
+                                <input type="date" id="det-prazo" style="width:100%; padding:0.6rem 0.75rem; border:1px solid #e2e8f0; border-radius:0.5rem; background:white; font-size:0.875rem;">
+                            </div>
+                            <div class="form-group">
+                                <label>7. Metas Estipuladas</label>
+                                <textarea id="det-metas" placeholder="Descreva as metas definidas para esta ação"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>8. Etapa Atual da Ação</label>
+                                <div class="etapa-opcoes" id="etapa-opcoes">
+                                    <button type="button" class="etapa-opcao" onclick="selecionarEtapa(this)">Planejamento</button>
+                                    <button type="button" class="etapa-opcao" onclick="selecionarEtapa(this)">Execução</button>
+                                    <button type="button" class="etapa-opcao" onclick="selecionarEtapa(this)">Verificação</button>
+                                    <button type="button" class="etapa-opcao" onclick="selecionarEtapa(this)">Revisão</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+                    <button type="submit" class="btn-salvar">💾 Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // ==================== CONFIGURAÇÃO SUPABASE ====================
+        
+        let supabaseClient = null;
+        let supabaseConfig = {
+            url: localStorage.getItem('supabase_url') || 'https://bgnlganfkuaprdzieosw.supabase.co',
+            key: localStorage.getItem('supabase_key') || 'sb_publishable_HYxU4QV1edGgxCc7pEcxzQ_jMW-IrAs'
+        };
+
+        function inicializarSupabase() {
+            if (supabaseConfig.url && supabaseConfig.key) {
+                try {
+                    supabaseClient = supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+                    syncStatus.updateUI('', 'Conectado');
+                    return true;
+                } catch (error) {
+                    console.error('Erro ao conectar Supabase:', error);
+                    syncStatus.updateUI('error', 'Erro de conexão');
+                    return false;
+                }
+            } else {
+                document.getElementById('configBanner').style.display = 'block';
+                syncStatus.updateUI('error', 'Não configurado');
+                return false;
+            }
+        }
+
+        function abrirModalConfig() {
+            document.getElementById('supabaseUrl').value = supabaseConfig.url;
+            document.getElementById('supabaseKey').value = supabaseConfig.key;
+            document.getElementById('modalConfig').classList.add('ativo');
+        }
+
+        function fecharModalConfig() {
+            document.getElementById('modalConfig').classList.remove('ativo');
+        }
+
+        async function salvarConfig() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+            
+            if (!url || !key) {
+                alert('Por favor, preencha todos os campos!');
+                return;
+            }
+            
+            supabaseConfig.url = url;
+            supabaseConfig.key = key;
+            
+            localStorage.setItem('supabase_url', url);
+            localStorage.setItem('supabase_key', key);
+            
+            if (inicializarSupabase()) {
+                document.getElementById('configBanner').style.display = 'none';
+                fecharModalConfig();
+                
+                // Criar tabela se não existir
+                await criarTabelaSeNaoExiste();
+                await carregarDados();
+                renderizar();
+            } else {
+                alert('Erro ao conectar. Verifique suas credenciais!');
+            }
+        }
+
+        async function criarTabelaSeNaoExiste() {
+            try {
+                // Tenta fazer uma query simples para verificar se a tabela existe
+                const { data, error } = await supabaseClient
+                    .from('agendamentos')
+                    .select('id')
+                    .limit(1);
+                
+                if (error && error.code === '42P01') {
+                    // Tabela não existe, mostrar instruções
+                    alert(`
+A tabela 'agendamentos' ainda não existe no seu banco Supabase!
+
+INSTRUÇÕES:
+1. Acesse seu projeto no Supabase
+2. Vá em "SQL Editor"
+3. Clique em "New Query"
+4. Cole o código abaixo e clique em "Run":
+
+CREATE TABLE agendamentos (
+    id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    tecnicos JSONB NOT NULL,
+    horario TEXT NOT NULL,
+    cidade TEXT NOT NULL,
+    colegio TEXT NOT NULL,
+    motivo TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE agendamentos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Permitir tudo" ON agendamentos
+FOR ALL
+USING (true)
+WITH CHECK (true);
+
+5. Depois disso, recarregue esta página!
+                    `);
+                }
+            } catch (error) {
+                console.error('Erro ao verificar tabela:', error);
+            }
+        }
+
+        // ==================== ESTADO GLOBAL ====================
+        
+        let agendamentos = [];
+        let semanaAtual = 0;
+        let mesAtual = new Date();
+        let visualizacaoAtiva = 'planejamento';
+        let agendamentoEditando = null; // ID do agendamento sendo editado
+        let filtros = {
+            tecnico: '',
+            cidade: '',
+            colegio: '',
+            motivo: ''
+        };
+        
+        let syncStatus = {
+            indicator: null,
+            text: null,
+            updateUI: function(status, message) {
+                if (!this.indicator) {
+                    this.indicator = document.getElementById('syncIndicator');
+                    this.text = document.getElementById('syncText');
+                }
+                this.indicator.className = `sync-indicator ${status}`;
+                this.text.textContent = message;
+            }
+        };
+
+        const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+        // ==================== BANCO DE DADOS ====================
+        
+        async function carregarDados() {
+            if (!supabaseClient) return;
+            
+            try {
+                syncStatus.updateUI('syncing', 'Carregando...');
+                
+                const { data, error } = await supabaseClient
+                    .from('agendamentos')
+                    .select('*')
+                    .order('data', { ascending: true });
+                
+                if (error) throw error;
+                
+                // Converter JSONs de volta para objetos/arrays
+                agendamentos = (data || []).map(ag => {
+                    try {
+                        return {
+                            ...ag,
+                            tecnicos: typeof ag.tecnicos === 'string' ? JSON.parse(ag.tecnicos) : ag.tecnicos,
+                            cidadesColegios: typeof ag.cidadesColegios === 'string' ? JSON.parse(ag.cidadesColegios) : ag.cidadesColegios,
+                            detalhamento: typeof ag.detalhamento === 'string' ? JSON.parse(ag.detalhamento) : ag.detalhamento
+                        };
+                    } catch (e) {
+                        console.error('Erro ao fazer parse do agendamento:', ag, e);
+                        return ag;
+                    }
+                });
+                
+                syncStatus.updateUI('', 'Sincronizado');
+            } catch (error) {
+                console.error('Erro ao carregar:', error);
+                syncStatus.updateUI('error', 'Erro ao carregar');
+                agendamentos = [];
+            }
+        }
+
+        async function salvarAgendamentoDB(agendamento) {
+            if (!supabaseClient) return;
+            
+            try {
+                syncStatus.updateUI('syncing', 'Salvando...');
+                
+                // Preparar dados para o Supabase (converter arrays/objetos para JSON)
+                const dadosParaSalvar = {
+                    id: agendamento.id,
+                    data: agendamento.data,
+                    tecnicos: JSON.stringify(agendamento.tecnicos || []),
+                    turno: agendamento.turno || '',
+                    cidade: agendamento.cidade || '',
+                    colegio: agendamento.colegio || '',
+                    tema: agendamento.tema || '',
+                    motivo: agendamento.motivo || '',
+                    outrosDescricao: agendamento.outrosDescricao || '',
+                    cidadesColegios: JSON.stringify(agendamento.cidadesColegios || []),
+                    detalhamento: agendamento.detalhamento ? JSON.stringify(agendamento.detalhamento) : null
+                };
+                
+                console.log('Dados preparados para salvar:', dadosParaSalvar);
+                
+                const { data, error } = await supabaseClient
+                    .from('agendamentos')
+                    .insert([dadosParaSalvar])
+                    .select();
+                
+                if (error) {
+                    console.error('Erro detalhado do Supabase:', error);
+                    console.error('Mensagem:', error.message);
+                    console.error('Detalhes:', error.details);
+                    console.error('Hint:', error.hint);
+                    console.error('Code:', error.code);
+                    
+                    // Verificar se é erro de coluna inexistente
+                    if (error.code === '42703' || (error.message && error.message.includes('column') && error.message.includes('does not exist'))) {
+                        alert('⚠️ Erro: A tabela do banco de dados não está atualizada.\n\nO sistema funcionará, mas os turnos serão salvos no campo "turno" ao invés de "turnos".\n\nSe quiser a funcionalidade completa, entre em contato com o administrador do sistema.');
+                    } else {
+                        alert('Erro ao salvar agendamento. Verifique o console para mais detalhes.');
+                    }
+                    
+                    throw error;
+                }
+                
+                syncStatus.updateUI('', 'Sincronizado');
+                return data[0];
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                syncStatus.updateUI('error', 'Erro ao salvar');
+                throw error;
+            }
+        }
+
+        async function atualizarAgendamentoDB(id, mudancas) {
+            if (!supabaseClient) return;
+            
+            try {
+                syncStatus.updateUI('syncing', 'Atualizando...');
+                
+                // Preparar dados para o Supabase (converter arrays/objetos para JSON)
+                const dadosParaAtualizar = { ...mudancas };
+                if (dadosParaAtualizar.tecnicos) {
+                    dadosParaAtualizar.tecnicos = JSON.stringify(dadosParaAtualizar.tecnicos);
+                }
+                // Remover turnos do update para evitar erro
+                delete dadosParaAtualizar.turnos;
+                
+                if (dadosParaAtualizar.cidadesColegios) {
+                    dadosParaAtualizar.cidadesColegios = JSON.stringify(dadosParaAtualizar.cidadesColegios);
+                }
+                if (dadosParaAtualizar.detalhamento) {
+                    dadosParaAtualizar.detalhamento = JSON.stringify(dadosParaAtualizar.detalhamento);
+                }
+                
+                console.log('Dados preparados para atualizar:', dadosParaAtualizar);
+                
+                const { data, error } = await supabaseClient
+                    .from('agendamentos')
+                    .update(dadosParaAtualizar)
+                    .eq('id', id)
+                    .select();
+                
+                if (error) {
+                    console.error('Erro detalhado do Supabase:', error);
+                    console.error('Mensagem:', error.message);
+                    console.error('Detalhes:', error.details);
+                    console.error('Hint:', error.hint);
+                    console.error('Code:', error.code);
+                    
+                    // Verificar se é erro de coluna inexistente
+                    if (error.code === '42703' || (error.message && error.message.includes('column') && error.message.includes('does not exist'))) {
+                        alert('⚠️ Erro: Coluna não existe na tabela.\n\nO sistema está usando compatibilidade com a versão antiga do banco de dados.');
+                    } else {
+                        alert('Erro ao atualizar agendamento. Verifique o console para mais detalhes.');
+                    }
+                    
+                    throw error;
+                }
+                
+                syncStatus.updateUI('', 'Sincronizado');
+                return data[0];
+            } catch (error) {
+                console.error('Erro ao atualizar:', error);
+                syncStatus.updateUI('error', 'Erro ao atualizar');
+                throw error;
+            }
+        }
+
+        async function deletarAgendamentoDB(id) {
+            if (!supabaseClient) return;
+            
+            try {
+                syncStatus.updateUI('syncing', 'Deletando...');
+                
+                const { error } = await supabaseClient
+                    .from('agendamentos')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                syncStatus.updateUI('', 'Sincronizado');
+            } catch (error) {
+                console.error('Erro ao deletar:', error);
+                syncStatus.updateUI('error', 'Erro ao deletar');
+                throw error;
+            }
+        }
+
+        // Escuta mudanças em tempo real
+        function escutarMudancas() {
+            if (!supabaseClient) return;
+            
+            supabaseClient
+                .channel('agendamentos-changes')
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'agendamentos' },
+                    async (payload) => {
+                        console.log('Mudança detectada:', payload);
+                        await carregarDados();
+                        
+                        if (visualizacaoAtiva === 'planejamento') {
+                            renderizar();
+                        } else {
+                            renderizarCalendarioFormacoes();
+                        }
+                        
+                        syncStatus.updateUI('', 'Atualizado');
+                        setTimeout(() => syncStatus.updateUI('', 'Sincronizado'), 2000);
+                    }
+                )
+                .subscribe();
+        }
+
+        // ==================== INICIALIZAÇÃO ====================
+
+        async function init() {
+            if (inicializarSupabase()) {
+                await carregarDados();
+                escutarMudancas();
+            }
+            
+            atualizarMesAtual();
+            renderizar();
+        }
+
+        function atualizarMesAtual() {
+            const hoje = new Date();
+            document.getElementById('mesAtual').textContent = 
+                `${MESES[hoje.getMonth()]} ${hoje.getFullYear()}`;
+        }
+
+        // ==================== VISUALIZAÇÕES ====================
+
+        function mudarVisualizacao(tipo) {
+            visualizacaoAtiva = tipo;
+            
+            document.querySelectorAll('.btn-toggle').forEach(btn => {
+                btn.classList.remove('ativo');
+            });
+            event.target.classList.add('ativo');
+            
+            if (tipo === 'planejamento') {
+                document.getElementById('visualizacao-planejamento').style.display = 'block';
+                document.getElementById('visualizacao-formacoes').style.display = 'none';
+                renderizar();
+            } else {
+                document.getElementById('visualizacao-planejamento').style.display = 'none';
+                document.getElementById('visualizacao-formacoes').style.display = 'block';
+                renderizarCalendarioFormacoes();
+            }
+        }
+
+        // ==================== FILTROS ====================
+
+        function aplicarFiltros() {
+            filtros.tecnico = document.getElementById('filtro-tecnico').value.toLowerCase();
+            filtros.cidade = document.getElementById('filtro-cidade').value.toLowerCase();
+            filtros.colegio = document.getElementById('filtro-colegio').value.toLowerCase();
+            filtros.motivo = document.getElementById('filtro-motivo').value;
+            
+            if (visualizacaoAtiva === 'planejamento') {
+                renderizar();
+            } else {
+                renderizarCalendarioFormacoes();
+            }
+        }
+
+        function filtrarAgendamentos() {
+            return agendamentos.filter(a => {
+                const tecnicos = a.tecnicos || [a.tecnico];
+                const temTecnico = tecnicos.some(t => t.toLowerCase().includes(filtros.tecnico));
+                const temCidade = a.cidade.toLowerCase().includes(filtros.cidade);
+                const temColegio = a.colegio.toLowerCase().includes(filtros.colegio);
+                const temMotivo = !filtros.motivo || a.motivo === filtros.motivo;
+                
+                return temTecnico && temCidade && temColegio && temMotivo;
+            });
+        }
+
+        // ==================== NAVEGAÇÃO ====================
+
+        function semanaAnterior() {
+            semanaAtual--;
+            renderizar();
+        }
+
+        function proximaSemana() {
+            semanaAtual++;
+            renderizar();
+        }
+
+        function mesAnterior() {
+            mesAtual.setMonth(mesAtual.getMonth() - 1);
+            renderizarCalendarioFormacoes();
+        }
+
+        function proximoMes() {
+            mesAtual.setMonth(mesAtual.getMonth() + 1);
+            renderizarCalendarioFormacoes();
+        }
+
+        function getDatasSemana() {
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            
+            // Calcular a segunda-feira da semana
+            const diaSemana = hoje.getDay();
+            const primeiroDia = new Date(hoje);
+            // Se for domingo (0), volta 6 dias, senão volta (diaSemana - 1) dias
+            const diasParaVoltar = diaSemana === 0 ? 6 : diaSemana - 1;
+            primeiroDia.setDate(hoje.getDate() - diasParaVoltar + (semanaAtual * 7));
+            
+            const datas = [];
+            // Apenas de segunda (i=0) a sexta (i=4) - 5 dias
+            for (let i = 0; i < 5; i++) {
+                const data = new Date(primeiroDia);
+                data.setDate(primeiroDia.getDate() + i);
+                datas.push(data);
+            }
+            
+            return datas;
+        }
+
+        function formatarDataISO(data) {
+            const ano = data.getFullYear();
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const dia = String(data.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        }
+
+        function formatarDataExibicao(dataISO) {
+            const [ano, mes, dia] = dataISO.split('-');
+            return `${dia}/${mes}`;
+        }
+
+        // ==================== RENDERIZAÇÃO ====================
+
+        function renderizar() {
+            const datas = getDatasSemana();
+            const agendamentosFiltrados = filtrarAgendamentos();
+            
+            const primeiraData = datas[0];
+            const ultimaData = datas[4]; // Mudei de [6] para [4] pois agora são 5 dias (0-4)
+            document.getElementById('semanaInfo').textContent = 
+                `${formatarDataExibicao(formatarDataISO(primeiraData))} - ${formatarDataExibicao(formatarDataISO(ultimaData))}`;
+            
+            const grade = document.getElementById('grade');
+            grade.innerHTML = '';
+            
+            datas.forEach(diaData => {
+                const dataISO = formatarDataISO(diaData);
+                const itensDia = agendamentosFiltrados.filter(a => a.data === dataISO);
+                const nomeDia = DIAS_SEMANA[diaData.getDay()];
+                const dataFormatada = formatarDataExibicao(dataISO);
+                
+                const coluna = document.createElement('div');
+                coluna.className = 'coluna';
+                
+                coluna.innerHTML = `
+                    <div class="coluna-header">
+                        <div class="coluna-header-top">
+                            <div>
+                                <h2>${nomeDia}</h2>
+                                <div class="coluna-data">${dataFormatada}</div>
+                            </div>
+                            <div class="contador-container">
+                                <button class="btn-adicionar-dia" onclick="abrirModalComData('${dataISO}')" title="Adicionar agendamento">+</button>
+                                <span class="contador">${itensDia.length}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="coluna-body" id="coluna-${dataISO}" data-data="${dataISO}"></div>
+                `;
+                
+                grade.appendChild(coluna);
+                
+                const corpo = document.getElementById(`coluna-${dataISO}`);
+                
+                corpo.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    corpo.classList.add('drag-over');
+                });
+                
+                corpo.addEventListener('dragleave', (e) => {
+                    if (!corpo.contains(e.relatedTarget)) {
+                        corpo.classList.remove('drag-over');
+                    }
+                });
+                
+                corpo.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    corpo.classList.remove('drag-over');
+                    
+                    const agendamentoId = e.dataTransfer.getData('text/plain');
+                    const novaData = corpo.dataset.data;
+                    
+                    const agendamento = agendamentos.find(a => a.id === agendamentoId);
+                    if (agendamento && agendamento.data !== novaData) {
+                        await atualizarAgendamentoDB(agendamentoId, { data: novaData });
+                        agendamento.data = novaData;
+                        renderizar();
+                    }
+                });
+                
+                if (itensDia.length === 0) {
+                    corpo.innerHTML = '<div class="vazio">Nenhum compromisso</div>';
+                } else {
+                    const ORDEM_MOTIVO = ['Tutoria','Visita técnica','Visita','Multiprofissional','Reunião','Verificação','Formação','Outros'];
+                    const ORDEM_TURNO = ['Manhã','Tarde','Noite'];
+                    itensDia.sort((a, b) => {
+                        // 1. Ordenar por natureza
+                        const ordemA = ORDEM_MOTIVO.indexOf(a.motivo);
+                        const ordemB = ORDEM_MOTIVO.indexOf(b.motivo);
+                        const posA = ordemA === -1 ? ORDEM_MOTIVO.length : ordemA;
+                        const posB = ordemB === -1 ? ORDEM_MOTIVO.length : ordemB;
+                        if (posA !== posB) return posA - posB;
+                        // 2. Mesma natureza: ordenar por nome do técnico (alfabética)
+                        const tecA = ((a.tecnicos && a.tecnicos[0]) || a.tecnico || '').toLowerCase();
+                        const tecB = ((b.tecnicos && b.tecnicos[0]) || b.tecnico || '').toLowerCase();
+                        if (tecA !== tecB) return tecA.localeCompare(tecB, 'pt');
+                        // 3. Mesmo técnico: ordenar por turno
+                        const turnoA = ORDEM_TURNO.indexOf(a.turno);
+                        const turnoB = ORDEM_TURNO.indexOf(b.turno);
+                        return (turnoA === -1 ? 99 : turnoA) - (turnoB === -1 ? 99 : turnoB);
+                    });
+                    
+                    itensDia.forEach(item => {
+                        corpo.appendChild(criarCard(item));
+                    });
+                }
+            });
+        }
+
+        function criarCard(item) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.draggable = true;
+            card.dataset.id = item.id;
+
+            card.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', item.id);
+                card.classList.add('arrastando');
+            });
+            card.addEventListener('dragend', () => card.classList.remove('arrastando'));
+
+            const motivoAbrev = {
+                'Multiprofissional': 'Multi',
+                'Visita técnica': 'Vis. Tec.'
+            };
+            const motivoResumo = motivoAbrev[item.motivo] || item.motivo;
+            const motivoSlug = item.motivo.toLowerCase()
+                .replace('ç', 'c').replace('ã', 'a').replace('é', 'e')
+                .replace('ê', 'e').replace('í', 'i').replace('ó', 'o')
+                .replace('ô', 'o').replace('ú', 'u').replace(/\s+/g, '');
+            const motivoClass = `motivo-${motivoSlug}`;
+            card.classList.add(motivoClass);
+
+            const tecnicos = item.tecnicos || [item.tecnico];
+            const tecnicoResumo = tecnicos.length === 1
+                ? tecnicos[0]
+                : `${tecnicos[0]} +${tecnicos.length - 1}`;
+
+            const pares = item.cidadesColegios || [{ cidade: item.cidade, colegio: item.colegio, turnos: item.turnos }];
+            const cidadeResumo = pares[0]?.cidade || '';
+
+            // Linha resumo (compacta, sempre visível)
+            const resumoHTML = `
+                <div class="card-resumo">
+                    <span class="card-resumo-tecnico">${tecnicoResumo}</span>
+                    <span class="card-resumo-sep">|</span>
+                    <span class="card-resumo-motivo ${motivoClass}">${motivoResumo}</span>
+                    <span class="card-chevron">▼</span>
+                </div>`;
+
+            // Detalhes completos (ocultos por padrão)
+            const tecnicosDetalheHTML = tecnicos.length === 1
+                ? `<div class="info destaque"><span class="icon">👤</span><span>${tecnicos[0]}</span></div>`
+                : `<div class="info destaque"><span class="icon">👥</span><div class="tecnicos-badges">${tecnicos.map(t => `<span class="tecnico-badge">${t}</span>`).join('')}</div></div>`;
+
+            const paresHTML = pares.map(par => {
+                const turnosPar = par.turnos || (item.turnos || (item.turno ? item.turno.split(',').map(t => t.trim()) : []));
+                const turnosTexto = Array.isArray(turnosPar) ? turnosPar.join(', ') : turnosPar;
+                
+                return `
+                <div class="info" style="padding-top:0.25rem; border-top: 1px solid #f1f5f9;">
+                    <span class="icon">📍</span>
+                    <div style="flex: 1; display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center;">
+                        <div>
+                            <div style="font-size:0.72rem; color:#64748b;">${par.cidade}</div>
+                            ${par.colegio ? `<div style="font-size:0.82rem;">${par.colegio}</div>` : ''}
+                        </div>
+                        <div style="font-size:0.85rem; color:#2563eb; font-weight: 600; white-space: nowrap; align-self: center;">
+                            🌅 ${turnosTexto || 'Manhã'}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const temaHTML = item.tema
+                ? `<div class="info"><span class="icon">📚</span><span>${item.tema}</span></div>`
+                : '';
+
+            const detalhesHTML = `
+                <div class="card-detalhes">
+                    <div class="card-info">
+                        ${tecnicosDetalheHTML}
+                        ${paresHTML}
+                        ${temaHTML}
+                    </div>
+                    <div class="card-acoes">
+                        <button class="btn-ver-det" id="btn-det-${item.id}">📋</button>
+                        <button class="btn-editar" title="Editar">✏️ Editar</button>
+                        <button class="btn-del" title="Deletar">🗑 Remover</button>
+                    </div>
+                </div>`;
+
+            card.innerHTML = resumoHTML + detalhesHTML;
+
+            // Attach listeners to action buttons directly
+            const btnDet = card.querySelector('.btn-ver-det');
+            if (btnDet) {
+                btnDet.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    verDetalhamento(item.id);
+                });
+                btnDet.addEventListener('mouseenter', (e) => mostrarDetTooltip(e, item.id));
+                btnDet.addEventListener('mouseleave', () => ocultarDetTooltip());
+            }
+            card.querySelector('.btn-editar').addEventListener('click', (e) => {
+                e.stopPropagation();
+                editarAgendamento(item.id);
+            });
+            card.querySelector('.btn-del').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deletar(item.id);
+            });
+
+            // Toggle expand ao clicar no resumo
+            card.querySelector('.card-resumo').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const estaExpandido = card.classList.contains('expandido');
+                // Fecha todos os cards expandidos na página
+                document.querySelectorAll('.card.expandido').forEach(c => c.classList.remove('expandido'));
+                if (!estaExpandido) card.classList.add('expandido');
+            });
+
+            return card;
+        }
+
+        function renderizarCalendarioFormacoes() {
+            const agendamentosFiltrados = filtrarAgendamentos()
+                .filter(a => a.motivo === 'Formação');
+            
+            const ano = mesAtual.getFullYear();
+            const mes = mesAtual.getMonth();
+            
+            document.getElementById('mesInfo').textContent = `${MESES[mes]} ${ano}`;
+            
+            const calendario = document.getElementById('calendario');
+            calendario.innerHTML = '';
+            
+            const grid = document.createElement('div');
+            grid.className = 'calendario-grid';
+            
+            ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(dia => {
+                const elem = document.createElement('div');
+                elem.className = 'calendario-dia-semana';
+                elem.textContent = dia;
+                grid.appendChild(elem);
+            });
+            
+            const primeiroDia = new Date(ano, mes, 1);
+            const ultimoDia = new Date(ano, mes + 1, 0);
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            
+            const diasAntes = primeiroDia.getDay();
+            const mesAnterior = new Date(ano, mes, 0);
+            for (let i = diasAntes - 1; i >= 0; i--) {
+                const dia = mesAnterior.getDate() - i;
+                const elem = document.createElement('div');
+                elem.className = 'calendario-dia outro-mes';
+                elem.innerHTML = `<div class="dia-numero">${dia}</div>`;
+                grid.appendChild(elem);
+            }
+            
+            for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
+                const dataAtual = new Date(ano, mes, dia);
+                const dataISO = formatarDataISO(dataAtual);
+                const eventos = agendamentosFiltrados.filter(a => a.data === dataISO);
+                
+                const elem = document.createElement('div');
+                elem.className = 'calendario-dia';
+                
+                if (dataAtual.getTime() === hoje.getTime()) {
+                    elem.classList.add('hoje');
+                }
+                
+                elem.innerHTML = `
+                    <div class="dia-numero">${dia}</div>
+                    <div class="dia-eventos" id="eventos-${dataISO}">
+                        ${eventos.slice(0, 3).map((e, index) => {
+                            const tec = (e.tecnicos && e.tecnicos[0]) || e.tecnico || '';
+                            const tecResumo = tec.split(' ')[0]; // só primeiro nome
+                            const lugar = (e.cidadesColegios && e.cidadesColegios[0]?.cidade) || e.cidade || '';
+                            return `<div class="evento-mini" data-evento-id="${e.id}">${tecResumo} | ${lugar}</div>`;
+                        }).join('')}
+                        ${eventos.length > 3 ? `<div class="evento-mini">+${eventos.length - 3} mais</div>` : ''}
+                    </div>
+                `;
+                
+                // Adicionar click no dia para criar nova formação
+                elem.addEventListener('click', (e) => {
+                    // Não abrir o modal se clicou em um evento existente
+                    if (!e.target.classList.contains('evento-mini')) {
+                        abrirModalComDataEFormacao(dataISO);
+                    }
+                });
+                
+                grid.appendChild(elem);
+                
+                // Adicionar event listeners para cada evento
+                eventos.slice(0, 3).forEach((evento, index) => {
+                    setTimeout(() => {
+                        const eventoElem = document.querySelector(`[data-evento-id="${evento.id}"]`);
+                        if (eventoElem) {
+                            eventoElem.addEventListener('mouseenter', (e) => mostrarTooltip(e, evento));
+                            eventoElem.addEventListener('mouseleave', esconderTooltip);
+                            eventoElem.addEventListener('mousemove', moverTooltip);
+                            // Adicionar click para editar evento
+                            eventoElem.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                editarAgendamento(evento.id);
+                            });
+                        }
+                    }, 0);
+                });
+            }
+            
+            calendario.appendChild(grid);
+        }
+
+        // ==================== TOOLTIP ====================
+
+        function mostrarTooltip(e, agendamento) {
+            const tooltip = document.getElementById('tooltip-formacao');
+            const tecnicos = agendamento.tecnicos || [agendamento.tecnico];
+            const turnos = agendamento.turnos || (agendamento.turno ? [agendamento.turno] : ['Manhã']);
+            
+            tooltip.innerHTML = `
+                <div class="tooltip-header">
+                    <span class="tooltip-motivo">${agendamento.motivo}</span>
+                    <span class="tooltip-data">${formatarDataExibicao(agendamento.data)}</span>
+                </div>
+                <div class="tooltip-body">
+                    <div class="tooltip-info">
+                        <span class="tooltip-icon">👥</span>
+                        <div style="flex: 1;">
+                            <div class="tooltip-label">Técnico(s):</div>
+                            <div class="tooltip-tecnicos">
+                                ${tecnicos.map(t => `<span class="tooltip-tecnico-badge">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tooltip-info">
+                        <span class="tooltip-icon">🌅</span>
+                        <div>
+                            <span class="tooltip-label">Turno(s):</span>
+                            <span class="tooltip-valor">${Array.isArray(turnos) ? turnos.join(', ') : turnos}</span>
+                        </div>
+                    </div>
+                    ${(agendamento.cidadesColegios || [{ cidade: agendamento.cidade, colegio: agendamento.colegio }]).map(par => `
+                    <div class="tooltip-info">
+                        <span class="tooltip-icon">📍</span>
+                        <div style="flex:1;">
+                            <div style="font-size:0.8rem; color:#64748b; font-weight:600;">${par.cidade}</div>
+                            <div class="tooltip-valor">${par.colegio}</div>
+                        </div>
+                    </div>`).join('')}
+                    ${agendamento.tema ? `
+                    <div class="tooltip-info">
+                        <span class="tooltip-icon">📚</span>
+                        <div style="flex: 1;">
+                            <span class="tooltip-label">Tema:</span>
+                            <div class="tooltip-valor">${agendamento.tema}</div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            tooltip.classList.add('ativo');
+            moverTooltip(e);
+        }
+
+        function moverTooltip(e) {
+            const tooltip = document.getElementById('tooltip-formacao');
+            const offset = 15;
+            
+            let left = e.clientX + offset;
+            let top = e.clientY + offset;
+            
+            // Verificar se o tooltip sairia da tela
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // Ajustar horizontalmente se necessário
+            if (left + tooltipRect.width > windowWidth - 20) {
+                left = e.clientX - tooltipRect.width - offset;
+            }
+            
+            // Ajustar verticalmente se necessário
+            if (top + tooltipRect.height > windowHeight - 20) {
+                top = e.clientY - tooltipRect.height - offset;
+            }
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        function esconderTooltip() {
+            const tooltip = document.getElementById('tooltip-formacao');
+            tooltip.classList.remove('ativo');
+        }
+
+        // ==================== MODAL ====================
+
+        function toggleTemaFormacao() {
+            const motivo = document.getElementById('form-motivo').value;
+            const campoTema = document.getElementById('campo-tema');
+            const campoOutros = document.getElementById('campo-outros');
+
+            if (motivo === 'Formação') {
+                campoTema.style.display = 'block';
+                campoOutros.style.display = 'none';
+                document.getElementById('form-outros-descricao').value = '';
+            } else if (motivo === 'Outros') {
+                campoTema.style.display = 'none';
+                document.getElementById('form-tema').value = '';
+                campoOutros.style.display = 'block';
+                preencherDetalhamento(null);
+            } else {
+                campoTema.style.display = 'none';
+                document.getElementById('form-tema').value = '';
+                campoOutros.style.display = 'none';
+                document.getElementById('form-outros-descricao').value = '';
+                preencherDetalhamento(null); // Limpa o campo quando esconde
+            }
+        }
+
+        let _detIdAtual = null;
+
+        function mostrarDetTooltip(e, id) {
+            const ag = agendamentos.find(a => a.id === id);
+            const temDet = !!(ag && ag.detalhamento && Object.values(ag.detalhamento).some(v => v));
+            const tooltip = document.getElementById('det-tooltip');
+            tooltip.textContent = temDet ? '📋 Ver detalhamento' : '📋 Sem detalhamento — clique para inserir';
+            tooltip.classList.add('ativo');
+            _moverDetTooltip(e);
+        }
+
+        function _moverDetTooltip(e) {
+            const tooltip = document.getElementById('det-tooltip');
+            tooltip.style.left = (e.clientX - tooltip.offsetWidth / 2) + 'px';
+            tooltip.style.top  = (e.clientY - tooltip.offsetHeight - 10) + 'px';
+        }
+
+        function ocultarDetTooltip() {
+            document.getElementById('det-tooltip').classList.remove('ativo');
+        }
+
+        function verDetalhamento(id) {
+            ocultarDetTooltip();
+            const ag = agendamentos.find(a => a.id === id);
+            if (!ag) return;
+
+            // Sempre abre o modal de inserção/edição, independente de ter detalhamento ou não
+            abrirModalDetInsert(id, ag.detalhamento);
+        }
+
+        function habilitarEdicaoDetalhamento() {
+            fecharDetalhamento();
+            if (_detIdAtual) {
+                const ag = agendamentos.find(a => a.id === _detIdAtual);
+                abrirModalDetInsert(_detIdAtual, ag?.detalhamento || null);
+            }
+        }
+
+
+
+        function fecharDetalhamento() {
+            document.getElementById('modal-detalhamento').classList.remove('ativo');
+            _detIdAtual = null;
+        }
+
+        let _detInsertId = null;
+
+        function abrirModalDetInsert(id, det) {
+            _detInsertId = id;
+            const campos = ['objetivo','pauta','situacoes','encaminhamentos','responsaveis','prazo','metas'];
+            campos.forEach(k => {
+                const el = document.getElementById('di-' + k);
+                if (el) el.value = (det && det[k]) ? det[k] : '';
+            });
+            // Etapa
+            document.querySelectorAll('#di-etapa-opcoes .etapa-opcao').forEach(b => {
+                b.classList.toggle('selecionada', det && b.textContent === det.etapa);
+            });
+            document.getElementById('modal-det-insert').classList.add('ativo');
+        }
+
+        function fecharModalDetInsert() {
+            document.getElementById('modal-det-insert').classList.remove('ativo');
+            _detInsertId = null;
+        }
+
+        function selecionarEtapaDI(btn) {
+            document.querySelectorAll('#di-etapa-opcoes .etapa-opcao').forEach(b => b.classList.remove('selecionada'));
+            btn.classList.add('selecionada');
+        }
+
+        async function salvarDetInsert() {
+            if (!_detInsertId) return;
+            const det = {
+                objetivo:        document.getElementById('di-objetivo').value.trim(),
+                pauta:           document.getElementById('di-pauta').value.trim(),
+                situacoes:       document.getElementById('di-situacoes').value.trim(),
+                encaminhamentos: document.getElementById('di-encaminhamentos').value.trim(),
+                responsaveis:    document.getElementById('di-responsaveis').value.trim(),
+                prazo:           document.getElementById('di-prazo').value,
+                metas:           document.getElementById('di-metas').value.trim(),
+                etapa:           document.querySelector('#di-etapa-opcoes .etapa-opcao.selecionada')?.textContent || ''
+            };
+            const ag = agendamentos.find(a => a.id === _detInsertId);
+            if (ag) ag.detalhamento = det;
+            try {
+                await atualizarAgendamentoDB(_detInsertId, { detalhamento: det });
+                fecharModalDetInsert();
+                if (visualizacaoAtiva === 'planejamento') renderizar(); else renderizarCalendarioFormacoes();
+            } catch(err) {
+                alert('Erro ao salvar detalhamento. Tente novamente.');
+            }
+        }
+
+        function toggleDetalhamento() {
+            const checkbox = document.getElementById('toggle-detalhamento');
+            const campos = document.getElementById('detalhamento-campos');
+            const toggle = checkbox.closest('.detalhamento-toggle');
+            // sync checkbox state
+            campos.classList.toggle('ativo', checkbox.checked);
+            toggle.style.borderBottomLeftRadius = checkbox.checked ? '0' : '';
+            toggle.style.borderBottomRightRadius = checkbox.checked ? '0' : '';
+        }
+
+        function selecionarEtapa(btn) {
+            document.querySelectorAll('#etapa-opcoes .etapa-opcao').forEach(b => b.classList.remove('selecionada'));
+            btn.classList.add('selecionada');
+        }
+
+        function getDetalhamento() {
+            if (!document.getElementById('toggle-detalhamento').checked) return null;
+            return {
+                objetivo:         document.getElementById('det-objetivo').value.trim(),
+                pauta:            document.getElementById('det-pauta').value.trim(),
+                situacoes:        document.getElementById('det-situacoes').value.trim(),
+                encaminhamentos:  document.getElementById('det-encaminhamentos').value.trim(),
+                responsaveis:     document.getElementById('det-responsaveis').value.trim(),
+                prazo:            document.getElementById('det-prazo').value,
+                metas:            document.getElementById('det-metas').value.trim(),
+                etapa:            document.querySelector('#etapa-opcoes .etapa-opcao.selecionada')?.textContent || ''
+            };
+        }
+
+        function preencherDetalhamento(det) {
+            const checkbox = document.getElementById('toggle-detalhamento');
+            const campos = document.getElementById('detalhamento-campos');
+            const toggle = checkbox.closest('.detalhamento-toggle');
+            if (det) {
+                checkbox.checked = true;
+                campos.classList.add('ativo');
+                toggle.style.borderBottomLeftRadius = '0';
+                toggle.style.borderBottomRightRadius = '0';
+                document.getElementById('det-objetivo').value        = det.objetivo || '';
+                document.getElementById('det-pauta').value           = det.pauta || '';
+                document.getElementById('det-situacoes').value       = det.situacoes || '';
+                document.getElementById('det-encaminhamentos').value = det.encaminhamentos || '';
+                document.getElementById('det-responsaveis').value    = det.responsaveis || '';
+                document.getElementById('det-prazo').value           = det.prazo || '';
+                document.getElementById('det-metas').value           = det.metas || '';
+                document.querySelectorAll('#etapa-opcoes .etapa-opcao').forEach(b => {
+                    b.classList.toggle('selecionada', b.textContent === det.etapa);
+                });
+            } else {
+                checkbox.checked = false;
+                campos.classList.remove('ativo');
+                toggle.style.borderBottomLeftRadius = '';
+                toggle.style.borderBottomRightRadius = '';
+            }
+        }
+
+        function abrirModal(dataISO) {
+            agendamentoEditando = null;
+            document.getElementById('modal').classList.add('ativo');
+            document.getElementById('modal-titulo').textContent = '➕ Novo Agendamento';
+            document.querySelector('.btn-salvar').textContent = '💾 Salvar';
+
+            // Esconder campo tema inicialmente
+            document.getElementById('campo-tema').style.display = 'none';
+
+            // Setar a data passada como parâmetro (ou vazio se nenhuma)
+            document.getElementById('form-data').value = dataISO || '';
+
+            // Limpar outros campos manualmente (sem form.reset() que restaura valores padrão)
+            document.getElementById('form-tema').value = '';
+            document.getElementById('form-motivo').value = '';
+            document.getElementById('form-outros-descricao').value = '';
+            document.getElementById('campo-outros').style.display = 'none';
+            if (document.getElementById('form-horario')) document.getElementById('form-horario').value = '08:00';
+            if (document.getElementById('form-hora')) document.getElementById('form-hora').value = '08';
+            if (document.getElementById('form-minuto')) document.getElementById('form-minuto').value = '00';
+
+            const lista = document.getElementById('tecnicos-lista');
+            lista.innerHTML = `
+                <div class="tecnico-row">
+                    <input type="text" class="tecnico-input" placeholder="Ex: Maria Silva" required>
+                </div>
+            `;
+
+            const cidadesLista = document.getElementById('cidades-lista');
+            cidadesLista.innerHTML = criarLinhaCidadeColegio('', '', [], false);
+
+            const formMotivo = document.getElementById('form-motivo');
+            if (visualizacaoAtiva === 'formacoes') {
+                formMotivo.value = 'Formação';
+                formMotivo.disabled = true;
+                toggleTemaFormacao();
+            } else {
+                formMotivo.disabled = false;
+            }
+            
+            // Aplicar autocomplete aos inputs criados
+            setTimeout(() => {
+                adicionarAutocompleteTecnicos();
+                adicionarAutocompleteColegios();
+            }, 0);
+        }
+
+        function abrirModalComData(dataISO) {
+            abrirModal(dataISO);
+        }
+
+        function abrirModalComDataEFormacao(dataISO) {
+            abrirModal(dataISO);
+            document.getElementById('form-motivo').value = 'Formação';
+            toggleTemaFormacao();
+        }
+
+        function editarAgendamento(id) {
+            const agendamento = agendamentos.find(a => a.id === id);
+            if (!agendamento) return;
+
+            agendamentoEditando = id;
+            document.getElementById('modal').classList.add('ativo');
+            document.getElementById('modal-titulo').textContent = '✏️ Editar Agendamento';
+            document.querySelector('.btn-salvar').textContent = '💾 Atualizar';
+            document.getElementById('form-motivo').disabled = false;
+
+            // Data
+            document.getElementById('form-data').value = agendamento.data;
+
+            // Motivo e tema
+            document.getElementById('form-motivo').value = agendamento.motivo;
+            document.getElementById('form-tema').value = agendamento.tema || '';
+            document.getElementById('form-outros-descricao').value = agendamento.outrosDescricao || '';
+            toggleTemaFormacao();
+
+            // Turnos salvos (para compatibilidade com formato antigo)
+            const turnosSalvos = Array.isArray(agendamento.turnos)
+                ? agendamento.turnos
+                : (agendamento.turno ? agendamento.turno.split(',').map(t => t.trim()) : []);
+
+            // Cidades/colégios com turnos
+            const cidadesLista = document.getElementById('cidades-lista');
+            cidadesLista.innerHTML = '';
+            const pares = agendamento.cidadesColegios || [{ 
+                cidade: agendamento.cidade, 
+                colegio: agendamento.colegio,
+                turnos: turnosSalvos
+            }];
+            pares.forEach((par, index) => {
+                const div = document.createElement('div');
+                const turnosPar = par.turnos || turnosSalvos;
+                div.innerHTML = criarLinhaCidadeColegio(par.cidade, par.colegio, turnosPar, index > 0);
+                cidadesLista.appendChild(div.firstElementChild);
+            });
+
+            // Técnicos
+            const lista = document.getElementById('tecnicos-lista');
+            const tecnicos = agendamento.tecnicos || [agendamento.tecnico];
+            lista.innerHTML = '';
+            tecnicos.forEach((tecnico, index) => {
+                const novaLinha = document.createElement('div');
+                novaLinha.className = 'tecnico-row';
+                novaLinha.innerHTML = `
+                    <input type="text" class="tecnico-input" placeholder="Ex: Maria Silva" value="${tecnico}" required>
+                    ${index > 0 ? '<button type="button" class="btn-remover-tecnico" onclick="removerTecnico(this)">×</button>' : ''}
+                `;
+                lista.appendChild(novaLinha);
+            });
+
+            // Detalhamento — NÃO preencher no modal de edição; usar modal dedicado via 📋
+            preencherDetalhamento(null);
+            
+            // Aplicar autocomplete aos inputs criados
+            setTimeout(() => {
+                adicionarAutocompleteTecnicos();
+                adicionarAutocompleteColegios();
+            }, 0);
+        }
+
+        // ========== AUTOCOMPLETE ==========
+        let autocompleteAtivo = null;
+        let autocompleteIndex = -1;
+
+        function obterTecnicosUnicos() {
+            const tecnicos = new Set();
+            agendamentos.forEach(ag => {
+                if (ag.tecnicos && Array.isArray(ag.tecnicos)) {
+                    ag.tecnicos.forEach(t => {
+                        if (t && t.trim()) tecnicos.add(t.trim());
+                    });
+                } else if (ag.tecnico && ag.tecnico.trim()) {
+                    tecnicos.add(ag.tecnico.trim());
+                }
+            });
+            return Array.from(tecnicos).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        }
+
+        function obterColegiosUnicos() {
+            const colegios = new Set();
+            agendamentos.forEach(ag => {
+                if (ag.cidadesColegios && Array.isArray(ag.cidadesColegios)) {
+                    ag.cidadesColegios.forEach(cc => {
+                        if (cc.colegio && cc.colegio.trim()) colegios.add(cc.colegio.trim());
+                    });
+                } else if (ag.colegio && ag.colegio.trim()) {
+                    colegios.add(ag.colegio.trim());
+                }
+            });
+            return Array.from(colegios).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        }
+
+        function configurarAutocomplete(input, sugestoes) {
+            const container = document.createElement('div');
+            container.className = 'autocomplete-container';
+            input.parentNode.insertBefore(container, input);
+            container.appendChild(input);
+
+            const lista = document.createElement('div');
+            lista.className = 'autocomplete-list';
+            container.appendChild(lista);
+
+            input.addEventListener('input', function() {
+                const valor = this.value.trim().toLowerCase();
+                autocompleteIndex = -1;
+
+                if (!valor) {
+                    lista.classList.remove('ativo');
+                    lista.innerHTML = '';
+                    autocompleteAtivo = null;
+                    return;
+                }
+
+                const filtrados = sugestoes.filter(s => 
+                    s.toLowerCase().includes(valor)
+                );
+
+                if (filtrados.length === 0) {
+                    lista.classList.remove('ativo');
+                    lista.innerHTML = '';
+                    autocompleteAtivo = null;
+                    return;
+                }
+
+                lista.innerHTML = filtrados.map((item, index) => {
+                    const regex = new RegExp(`(${valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                    const destacado = item.replace(regex, '<mark>$1</mark>');
+                    return `<div class="autocomplete-item" data-index="${index}" data-value="${item}">${destacado}</div>`;
+                }).join('');
+
+                lista.classList.add('ativo');
+                autocompleteAtivo = { input, lista, sugestoes: filtrados };
+
+                // Click nos itens
+                lista.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        input.value = this.dataset.value;
+                        lista.classList.remove('ativo');
+                        lista.innerHTML = '';
+                        autocompleteAtivo = null;
+                        input.focus();
+                    });
+                });
+            });
+
+            // Navegação por teclado
+            input.addEventListener('keydown', function(e) {
+                if (!autocompleteAtivo || !lista.classList.contains('ativo')) return;
+
+                const items = lista.querySelectorAll('.autocomplete-item');
+                if (items.length === 0) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    autocompleteIndex = Math.min(autocompleteIndex + 1, items.length - 1);
+                    atualizarSelecaoAutocomplete(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    autocompleteIndex = Math.max(autocompleteIndex - 1, -1);
+                    atualizarSelecaoAutocomplete(items);
+                } else if (e.key === 'Enter' && autocompleteIndex >= 0) {
+                    e.preventDefault();
+                    input.value = items[autocompleteIndex].dataset.value;
+                    lista.classList.remove('ativo');
+                    lista.innerHTML = '';
+                    autocompleteAtivo = null;
+                } else if (e.key === 'Escape') {
+                    lista.classList.remove('ativo');
+                    lista.innerHTML = '';
+                    autocompleteAtivo = null;
+                }
+            });
+
+            // Fechar ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (autocompleteAtivo && !container.contains(e.target)) {
+                    lista.classList.remove('ativo');
+                    lista.innerHTML = '';
+                    autocompleteAtivo = null;
+                }
+            });
+        }
+
+        function atualizarSelecaoAutocomplete(items) {
+            items.forEach((item, index) => {
+                if (index === autocompleteIndex) {
+                    item.classList.add('selecionado');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('selecionado');
+                }
+            });
+        }
+
+        function adicionarAutocompleteTecnicos() {
+            const inputs = document.querySelectorAll('#tecnicos-lista .tecnico-input');
+            const tecnicos = obterTecnicosUnicos();
+            inputs.forEach(input => {
+                // Verifica se já não tem autocomplete configurado
+                if (!input.parentElement.classList.contains('autocomplete-container')) {
+                    configurarAutocomplete(input, tecnicos);
+                }
+            });
+        }
+
+        function adicionarAutocompleteColegios() {
+            const inputs = document.querySelectorAll('#cidades-lista .colegio-input');
+            const colegios = obterColegiosUnicos();
+            inputs.forEach(input => {
+                // Verifica se já não tem autocomplete configurado
+                if (!input.parentElement.classList.contains('autocomplete-container')) {
+                    configurarAutocomplete(input, colegios);
+                }
+            });
+        }
+        // ========== FIM AUTOCOMPLETE ==========
+
+        function adicionarTecnico() {
+            const lista = document.getElementById('tecnicos-lista');
+            const novaLinha = document.createElement('div');
+            novaLinha.className = 'tecnico-row';
+            novaLinha.innerHTML = `
+                <input type="text" class="tecnico-input" placeholder="Ex: João Santos">
+                <button type="button" class="btn-remover-tecnico" onclick="removerTecnico(this)">×</button>
+            `;
+            lista.appendChild(novaLinha);
+            
+            // Aplicar autocomplete no novo input
+            const novoInput = novaLinha.querySelector('.tecnico-input');
+            const tecnicos = obterTecnicosUnicos();
+            configurarAutocomplete(novoInput, tecnicos);
+        }
+
+        function removerTecnico(btn) {
+            btn.parentElement.remove();
+        }
+
+        function getTecnicos() {
+            const inputs = document.querySelectorAll('#tecnicos-lista .tecnico-input');
+            return Array.from(inputs)
+                .map(input => input.value.trim())
+                .filter(valor => valor !== '');
+        }
+
+        const CIDADES_OPTIONS = [
+            'Atendimento remoto',
+            'Foz do Iguaçu','Santa Terezinha de Itaipu','São Miguel do Iguaçu',
+            'Itaipulândia','Matelândia','Medianeira','Missal','Ramilândia','Serranópolis do Iguaçu'
+        ];
+
+        function criarLinhaCidadeColegio(cidadeSelecionada, colegioValor, turnosSelecionados, comBotaoRemover) {
+            const options = CIDADES_OPTIONS.map(c =>
+                `<option value="${c}" ${c === cidadeSelecionada ? 'selected' : ''}>${c}</option>`
+            ).join('');
+            const isRemoto = cidadeSelecionada === 'Atendimento remoto';
+            
+            // turnos pode ser string "Manhã, Tarde" ou array ["Manhã", "Tarde"]
+            const turnosArray = Array.isArray(turnosSelecionados) 
+                ? turnosSelecionados 
+                : (turnosSelecionados ? turnosSelecionados.split(',').map(t => t.trim()) : []);
+            
+            return `
+                <div class="tecnico-row" style="flex-direction:column; gap:0.4rem; align-items:stretch; margin-bottom:0.5rem;">
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <select class="cidade-select" onchange="toggleColegio(this)" style="flex:1; padding:0.6rem; border:1px solid #e2e8f0; border-radius:0.5rem; background:white; font-size:0.9rem;">
+                            <option value="">Selecione uma cidade...</option>
+                            ${options}
+                        </select>
+                        ${comBotaoRemover ? '<button type="button" class="btn-remover-tecnico" onclick="removerCidadeColegio(this)" style="align-self:center;">×</button>' : ''}
+                    </div>
+                    <input type="text" class="colegio-input tecnico-input" placeholder="Ex: Colégio Estadual ABC" value="${colegioValor}" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:0.5rem; background:white; font-size:0.9rem; display:${isRemoto ? 'none' : 'block'};">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <label class="turno-label" style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: white; border: 1px solid #e2e8f0; flex: 1; min-width: 100px;">
+                            <input type="checkbox" class="turno-checkbox" value="Manhã" ${turnosArray.includes('Manhã') ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+                            <span style="font-size: 0.85rem;">☀️ Manhã</span>
+                        </label>
+                        <label class="turno-label" style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: white; border: 1px solid #e2e8f0; flex: 1; min-width: 100px;">
+                            <input type="checkbox" class="turno-checkbox" value="Tarde" ${turnosArray.includes('Tarde') ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+                            <span style="font-size: 0.85rem;">🌤️ Tarde</span>
+                        </label>
+                        <label class="turno-label" style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: white; border: 1px solid #e2e8f0; flex: 1; min-width: 100px;">
+                            <input type="checkbox" class="turno-checkbox" value="Noite" ${turnosArray.includes('Noite') ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+                            <span style="font-size: 0.85rem;">🌙 Noite</span>
+                        </label>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleColegio(select) {
+            const row = select.closest('.tecnico-row');
+            const colegio = row.querySelector('.colegio-input');
+            if (select.value === 'Atendimento remoto') {
+                colegio.style.display = 'none';
+                colegio.value = '';
+            } else {
+                colegio.style.display = 'block';
+            }
+        }
+
+        function adicionarCidadeColegio() {
+            const lista = document.getElementById('cidades-lista');
+            const div = document.createElement('div');
+            div.innerHTML = criarLinhaCidadeColegio('', '', [], true);
+            lista.appendChild(div.firstElementChild);
+            
+            // Aplicar autocomplete no novo input de colégio
+            const novoInput = div.firstElementChild.querySelector('.colegio-input');
+            const colegios = obterColegiosUnicos();
+            configurarAutocomplete(novoInput, colegios);
+        }
+
+        function removerCidadeColegio(btn) {
+            btn.closest('.tecnico-row').remove();
+        }
+
+        function getCidadesColegios() {
+            const rows = document.querySelectorAll('#cidades-lista .tecnico-row');
+            return Array.from(rows).map(row => {
+                const turnosCheckboxes = row.querySelectorAll('.turno-checkbox:checked');
+                const turnos = Array.from(turnosCheckboxes).map(cb => cb.value);
+                
+                return {
+                    cidade: row.querySelector('.cidade-select').value.trim(),
+                    colegio: row.querySelector('.colegio-input').value.trim(),
+                    turnos: turnos
+                };
+            }).filter(p => p.cidade || p.colegio);
+        }
+
+        function fecharModal() {
+            agendamentoEditando = null;
+            document.getElementById('modal').classList.remove('ativo');
+            document.getElementById('form-motivo').disabled = false;
+            document.getElementById('modal-titulo').textContent = '➕ Novo Agendamento';
+            document.querySelector('.btn-salvar').textContent = '💾 Salvar';
+        }
+
+        function fecharSeCliqueForaModal(event) {
+            if (event.target.id === 'modal') {
+                fecharModal();
+            }
+        }
+
+        async function salvarAgendamento(e) {
+            e.preventDefault();
+            
+            if (!supabaseClient) {
+                alert('Configure o Supabase primeiro!');
+                abrirModalConfig();
+                return;
+            }
+            
+            const tecnicos = getTecnicos();
+            if (tecnicos.length === 0) {
+                alert('Adicione pelo menos um técnico!');
+                return;
+            }
+
+            const cidadesColegios = getCidadesColegios();
+            if (cidadesColegios.length === 0) {
+                alert('Adicione pelo menos uma cidade/local!');
+                return;
+            }
+            
+            // Validar se todos os locais têm pelo menos um turno selecionado
+            const localSemTurno = cidadesColegios.find(cc => !cc.turnos || cc.turnos.length === 0);
+            if (localSemTurno) {
+                alert('Por favor, selecione pelo menos um turno para cada local!');
+                return;
+            }
+            
+            // Coletar todos os turnos únicos de todos os locais
+            const todosTurnos = [...new Set(cidadesColegios.flatMap(cc => cc.turnos || []))];
+            
+            const dados = {
+                data: document.getElementById('form-data').value,
+                tecnicos: tecnicos,
+                turno: todosTurnos.join(', ') || 'Manhã',
+                turnos: todosTurnos,
+                cidade: cidadesColegios[0].cidade,
+                colegio: cidadesColegios[0].colegio,
+                cidadesColegios: cidadesColegios,
+                tema: document.getElementById('form-tema').value || '',
+                motivo: document.getElementById('form-motivo').value,
+                outrosDescricao: document.getElementById('form-motivo').value === 'Outros'
+                    ? (document.getElementById('form-outros-descricao').value || '')
+                    : '',
+                detalhamento: getDetalhamento()
+            };
+            
+            try {
+                if (agendamentoEditando) {
+                    // EDITANDO agendamento existente
+                    await atualizarAgendamentoDB(agendamentoEditando, dados);
+                    const index = agendamentos.findIndex(a => a.id === agendamentoEditando);
+                    if (index !== -1) {
+                        agendamentos[index] = { ...agendamentos[index], ...dados };
+                    }
+                } else {
+                    // CRIANDO novo agendamento
+                    const novo = {
+                        id: Date.now().toString(),
+                        ...dados
+                    };
+                    await salvarAgendamentoDB(novo);
+                    agendamentos.push(novo);
+                }
+                
+                if (visualizacaoAtiva === 'planejamento') {
+                    renderizar();
+                } else {
+                    renderizarCalendarioFormacoes();
+                }
+                
+                fecharModal();
+            } catch (error) {
+                alert('Erro ao salvar agendamento. Tente novamente!');
+            }
+        }
+
+        async function deletar(id) {
+            if (!confirm('Deseja realmente remover este agendamento?')) return;
+            
+            if (!supabaseClient) {
+                alert('Configure o Supabase primeiro!');
+                return;
+            }
+            
+            try {
+                await deletarAgendamentoDB(id);
+                agendamentos = agendamentos.filter(a => a.id !== id);
+                
+                if (visualizacaoAtiva === 'planejamento') {
+                    renderizar();
+                } else {
+                    renderizarCalendarioFormacoes();
+                }
+            } catch (error) {
+                alert('Erro ao deletar agendamento. Tente novamente!');
+            }
+        }
+
+        // Fechar cards expandidos ao clicar fora
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.card.expandido').forEach(c => c.classList.remove('expandido'));
+        });
+
+        // Inicializar
+        init();
+    </script>
+
+    <!-- Modal de Detalhamento -->
+    <div class="det-tooltip" id="det-tooltip"></div>
+
+    <!-- Modal de inserção/edição de detalhamento -->
+    <div class="modal" id="modal-det-insert" onclick="if(event.target===this)fecharModalDetInsert()" style="z-index:150;">
+        <div class="modal-conteudo" style="max-width:560px;">
+            <div class="modal-header">
+                <h2 id="modal-det-insert-titulo">📝 Detalhamento do Atendimento</h2>
+                <button class="btn-fechar" onclick="fecharModalDetInsert()">×</button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="form-group" style="margin:0;">
+                    <label>1. Objetivo e Justificativa da Ação</label>
+                    <textarea id="di-objetivo" placeholder="Descreva de forma sucinta o propósito da ação e os motivos que a tornam necessária" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;font-family:inherit;resize:vertical;min-height:70px;"></textarea>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>2. Pauta / Assuntos Abordados</label>
+                    <textarea id="di-pauta" placeholder="Liste os temas discutidos durante o atendimento" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;font-family:inherit;resize:vertical;min-height:70px;"></textarea>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>3. Situações Evidenciadas</label>
+                    <textarea id="di-situacoes" placeholder="Identifique as principais fragilidades ou problemas detectados" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;font-family:inherit;resize:vertical;min-height:70px;"></textarea>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>4. Encaminhamentos</label>
+                    <textarea id="di-encaminhamentos" placeholder="Detalhe as soluções propostas para enfrentar as fragilidades identificadas" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;font-family:inherit;resize:vertical;min-height:70px;"></textarea>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>5. Responsáveis pelos Encaminhamentos</label>
+                    <textarea id="di-responsaveis" placeholder="Informe os nomes e funções dos responsáveis pela execução das soluções propostas" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;font-family:inherit;resize:vertical;min-height:70px;"></textarea>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>6. Prazo para Avaliação, Feedback ou Revisão</label>
+                    <input type="date" id="di-prazo" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;">
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>7. Metas Estipuladas</label>
+                    <textarea id="di-metas" placeholder="Descreva as metas definidas para esta ação" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:0.5rem;background:white;font-size:0.875rem;font-family:inherit;resize:vertical;min-height:70px;"></textarea>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>8. Etapa Atual da Ação</label>
+                    <div class="etapa-opcoes" id="di-etapa-opcoes">
+                        <button type="button" class="etapa-opcao" onclick="selecionarEtapaDI(this)">Planejamento</button>
+                        <button type="button" class="etapa-opcao" onclick="selecionarEtapaDI(this)">Execução</button>
+                        <button type="button" class="etapa-opcao" onclick="selecionarEtapaDI(this)">Verificação</button>
+                        <button type="button" class="etapa-opcao" onclick="selecionarEtapaDI(this)">Revisão</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="fecharModalDetInsert()">Cancelar</button>
+                <button type="button" class="btn-salvar" onclick="salvarDetInsert()">💾 Salvar detalhamento</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip-formacao" class="tooltip-formacao"></div>
+
+
+</body>
+</html>
